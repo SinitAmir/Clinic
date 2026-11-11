@@ -123,7 +123,7 @@ let token='',expires=0,demo=false,rows=[],busy=false,offset=0,epoch=0,expiryTime
 const fixture=()=>[{id:'demo-1',patient_name:'מטופל לדוגמה א׳',patient_phone:'050-0000000',start_time:new Date(Date.now()+86400000).toISOString(),status:'pending'},{id:'demo-2',patient_name:'מטופלת לדוגמה ב׳',patient_phone:'050-0000001',start_time:new Date(Date.now()+172800000).toISOString(),status:'confirmed'}];
 function note(s,error=false){el('admin-note').textContent=s;el('admin-note').classList.toggle('error',error);}
 function lock(value){busy=value;for(const b of el('admin-panel').querySelectorAll('button'))b.disabled=value;el('admin-filter').disabled=value;}
-function reset(){epoch++;clearTimeout(expiryTimer);token='';expires=0;demo=false;rows=[];offset=0;el('admin-rows').replaceChildren();el('admin-dashboard').hidden=true;el('admin-login').hidden=false;el('admin-password').value='';el('admin-email').value='';note('');}
+function reset(){epoch++;clearTimeout(expiryTimer);token='';expires=0;demo=false;rows=[];offset=0;el('admin-rows').replaceChildren();el('admin-dashboard').hidden=true;el('admin-login').hidden=false;el('admin-password').value='';el('admin-email').value='';lock(false);note('');}
 async function api(path,options={}){
  if(!LIVE_ADMIN_ENABLED)throw new Error('החיבור לתורים אמיתיים טרם הופעל.');
  if(!path.startsWith('/auth/v1/token')&&(!token||Date.now()>=expires)){reset();throw new Error('ההתחברות הסתיימה. יש להיכנס מחדש.');}
