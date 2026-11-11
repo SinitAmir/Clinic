@@ -63,7 +63,7 @@ form{margin-top:24px}input{border:1px solid #aebcb1;background:#fff;border-radiu
 <h3>שעות עבודה שבועיות</h3><div id="weekly-list" class="week-grid"></div>
 <form id="hours-form"><h4>הוספה או עריכת טווח שבועי</h4><input type="hidden" id="hours-id"><div class="availability-fields"><div><label for="hours-day">יום בשבוע</label><select id="hours-day" required><option value="1">ראשון</option><option value="2">שני</option><option value="3">שלישי</option><option value="4">רביעי</option><option value="5">חמישי</option><option value="6">שישי</option><option value="7">שבת</option></select></div><div><label for="hours-start">משעה</label><input id="hours-start" type="time" required></div><div><label for="hours-end">עד שעה</label><input id="hours-end" type="time" required></div></div><label class="check-label"><input id="hours-active" type="checkbox" checked> טווח פעיל</label><div class="admin-actions"><button type="submit">שמירת שעות עבודה</button><button id="hours-clear" type="button" class="secondary">ניקוי הטופס</button></div></form>
 <h3>חופשות ושעות נוספות</h3><div id="exceptions-list"></div>
-<form id="exception-form"><h4>הוספה או עריכת חריגה</h4><input id="exception-id" type="hidden"><label for="exception-type">סוג</label><select id="exception-type"><option value="blocked">חסימת זמן / חופשה</option><option value="available">פתיחת שעות נוספות</option></select><div class="row"><div><label for="exception-start">מתאריך ושעה</label><input id="exception-start" type="datetime-local" required></div><div><label for="exception-end">עד תאריך ושעה</label><input id="exception-end" type="datetime-local" required></div></div><div class="admin-actions"><button type="submit">שמירת החריגה</button><button id="exception-clear" type="button" class="secondary">ניקוי הטופס</button></div></form><p id="availability-note" role="status" aria-live="polite"></p></section><div class="admin-actions"><button type="button" id="admin-refresh" class="secondary">רענון</button><button type="button" id="admin-logout" class="secondary">יציאה מניהול</button><label for="admin-filter">הצגת תורים</label><select id="admin-filter"><option value="">כל התורים בעמוד</option><option value="pending">ממתינים לאישור</option><option value="confirmed">מאושרים</option><option value="cancelled">מבוטלים</option></select></div><div id="admin-rows"></div><p id="admin-empty" hidden>אין תורים להצגה בבחירה זו.</p><div class="admin-actions"><button id="admin-prev" type="button" class="secondary">הקודם</button><span id="admin-page"></span><button id="admin-next" type="button" class="secondary">הבא</button></div></div><p id="admin-note" role="status" aria-live="polite"></p></section>
+<form id="exception-form"><h4>הוספה או עריכת חריגה</h4><input id="exception-id" type="hidden"><label for="exception-type">סוג</label><select id="exception-type"><option value="blocked">חסימת זמן / חופשה</option><option value="available">פתיחת שעות נוספות</option></select><div class="row"><div><label for="exception-start">מתאריך ושעה</label><input id="exception-start" type="datetime-local" required></div><div><label for="exception-end">עד תאריך ושעה</label><input id="exception-end" type="datetime-local" required></div></div><div class="admin-actions"><button type="submit">שמירת החריגה</button><button id="exception-clear" type="button" class="secondary">ניקוי הטופס</button></div></form><p id="availability-note" role="status" aria-live="polite"></p></section><div class="admin-actions"><button type="button" id="admin-refresh" class="secondary">רענון</button><button type="button" id="admin-logout" class="secondary">יציאה מניהול</button><label for="admin-archive-view">רשימה</label><select id="admin-archive-view"><option value="active">רשימה ראשית</option><option value="archived">ארכיון</option></select><label for="admin-filter">הצגת תורים</label><select id="admin-filter"><option value="">כל המצבים</option><option value="pending">ממתינים לאישור</option><option value="confirmed">מאושרים</option><option value="cancelled">מבוטלים</option></select></div><p class="muted">הארכיון מסתיר תורים מהרשימה הראשית ושומר את ההיסטוריה. כדי לפנות שעה של תור מאושר, יש לבטל אותו לפני העברתו לארכיון.</p><div id="admin-rows"></div><p id="admin-empty" hidden>אין תורים להצגה בבחירה זו.</p><div class="admin-actions"><button id="admin-prev" type="button" class="secondary">הקודם</button><span id="admin-page"></span><button id="admin-next" type="button" class="secondary">הבא</button></div></div><p id="admin-note" role="status" aria-live="polite"></p></section>
 <footer><span>הזמינות עשויה להשתנות עד לשליחת הבקשה.</span><span>ד״ר עמיר אסולין · רפואה סינית אינטגרטיבית</span></footer>
 </main>
 <script>
@@ -122,13 +122,14 @@ const LIVE_ADMIN_ENABLED=true;
 const ADMIN_ID='5c64ec75-a619-49bf-8cae-8f08c2b65722';
 const BASE='https://itmrulwqnvrkppubkdiy.supabase.co';
 // Verified against the production booking function and active-slot unique index.
+let archiveRequest=0;
 const STATES={pending:'ממתין לאישור',confirmed:'מאושר',cancelled:'מבוטל'};
 const el=id=>document.getElementById(id);
 let token='',expires=0,demo=false,rows=[],busy=false,offset=0,epoch=0,expiryTimer;
 const fixture=()=>[{id:'demo-1',patient_name:'מטופל לדוגמה א׳',patient_phone:'050-0000000',start_time:new Date(Date.now()+86400000).toISOString(),status:'pending'},{id:'demo-2',patient_name:'מטופלת לדוגמה ב׳',patient_phone:'050-0000001',start_time:new Date(Date.now()+172800000).toISOString(),status:'confirmed'}];
 function note(s,error=false){el('admin-note').textContent=s;el('admin-note').classList.toggle('error',error);}
-function lock(value){busy=value;for(const b of el('admin-panel').querySelectorAll('button'))b.disabled=value;el('admin-filter').disabled=value;}
-function reset(){epoch++;clearTimeout(expiryTimer);token='';expires=0;demo=false;rows=[];offset=0;el('admin-rows').replaceChildren();el('admin-dashboard').hidden=true;el('admin-login').hidden=false;el('admin-password').value='';el('admin-email').value='';clearAvailability();lock(false);note('');}
+function lock(value){busy=value;for(const b of el('admin-panel').querySelectorAll('button'))b.disabled=value;el('admin-filter').disabled=value;el('admin-archive-view').disabled=value;}
+function reset(){epoch++;archiveRequest++;el('admin-archive-view').value='active';el('admin-filter').value='';clearTimeout(expiryTimer);token='';expires=0;demo=false;rows=[];offset=0;el('admin-rows').replaceChildren();el('admin-dashboard').hidden=true;el('admin-login').hidden=false;el('admin-password').value='';el('admin-email').value='';clearAvailability();lock(false);note('');}
 async function api(path,options={}){
  if(!LIVE_ADMIN_ENABLED)throw new Error('החיבור לתורים אמיתיים טרם הופעל.');
  if(!path.startsWith('/auth/v1/token')&&(!token||Date.now()>=expires)){reset();throw new Error('ההתחברות הסתיימה. יש להיכנס מחדש.');}
@@ -141,7 +142,8 @@ async function api(path,options={}){
 function render(){
  el('admin-rows').replaceChildren();
  const filter=el('admin-filter').value;
- const visible=rows.filter(r=>!filter||r.status===filter);
+ const archived=el('admin-archive-view').value==='archived';
+ const visible=rows.filter(r=>Boolean(r.archived_at)===archived&&(!filter||r.status===filter));
  el('admin-empty').hidden=visible.length>0;
  for(const r of visible){
   const card=document.createElement('article');card.className='appointment-card';
@@ -150,20 +152,21 @@ function render(){
   const phone=document.createElement('p');phone.textContent=r.patient_phone;phone.dir='ltr';phone.className='admin-phone';
   const state=document.createElement('p');state.textContent=STATES[r.status]||'מצב לא מוכר';state.className='appointment-state';
   const actions=document.createElement('div');actions.className='admin-actions';
-  for(const [target,label] of [['confirmed','אישור תור'],['cancelled','ביטול תור']]){
+  for(const [target,label] of (archived?[]:[['confirmed','אישור תור'],['cancelled','ביטול תור']])){
    if((target==='confirmed'&&r.status!=='pending')||(target==='cancelled'&&!['pending','confirmed'].includes(r.status)))continue;
    const b=document.createElement('button');b.type='button';b.textContent=label;if(target==='cancelled')b.className='secondary';b.addEventListener('click',()=>change(r,target));actions.append(b);
   }
+  if(archived||['confirmed','approved','cancelled'].includes(r.status)){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=archived?'החזרה לרשימה הראשית':'העברה לארכיון';b.addEventListener('click',()=>archiveAppointment(r,!archived));actions.append(b);}
   card.append(name,date,phone,state,actions);el('admin-rows').append(card);
  }
  el('admin-page').textContent=demo?'נתוני דמה בלבד':`עמוד ${offset/50+1}`;
  el('admin-prev').disabled=busy||demo||offset===0;el('admin-next').disabled=busy||demo||rows.length<50;
 }
 async function load(){
- const ticket=epoch;lock(true);note('טוען תורים…');
- try{if(!demo){const result=await api('/rest/v1/appointments?select=id,patient_name,patient_phone,start_time,status&order=start_time.desc,id.desc&limit=50&offset='+offset);if(ticket!==epoch)return;if(!Array.isArray(result)||result.some(r=>!r.id||typeof r.patient_name!=='string'||typeof r.patient_phone!=='string'||!Number.isFinite(Date.parse(r.start_time))||typeof r.status!=='string'))throw new Error('מבנה התורים אינו תואם להגדרות.');rows=result;}note('');}
- catch(e){if(ticket===epoch){rows=[];note(e.message,true);}}
- finally{if(ticket===epoch){lock(false);render();}}
+ const ticket=epoch,request=++archiveRequest;lock(true);note('טוען תורים…');
+ try{if(!demo){const params=new URLSearchParams({select:'id::text,patient_name,patient_phone,start_time,status,archived_at',order:'start_time.desc,id.desc',limit:'50',offset:String(offset),archived_at:el('admin-archive-view').value==='archived'?'not.is.null':'is.null'});if(el('admin-filter').value)params.set('status','eq.'+el('admin-filter').value);const result=await api('/rest/v1/appointments?'+params);if(ticket!==epoch||request!==archiveRequest)return;if(!Array.isArray(result)||result.some(r=>!r.id||typeof r.patient_name!=='string'||typeof r.patient_phone!=='string'||!Number.isFinite(Date.parse(r.start_time))||typeof r.status!=='string'))throw new Error('מבנה התורים אינו תואם להגדרות.');rows=result;}note('');}
+ catch(e){if(ticket===epoch&&request===archiveRequest){rows=[];note(e.message,true);}}
+ finally{if(ticket===epoch&&request===archiveRequest){lock(false);render();}}
 }
 async function change(row,target){
  if(busy)return;
@@ -171,10 +174,23 @@ async function change(row,target){
  const ticket=epoch;lock(true);
  try{
   if(demo)row.status=target;
-  else{const q=new URLSearchParams({id:'eq.'+row.id,status:'eq.'+row.status,select:'id'});const result=await api('/rest/v1/appointments?'+q,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({status:target})});if(ticket!==epoch)return;if(!Array.isArray(result)||result.length!==1)throw new Error('התור השתנה או שאין הרשאה לעדכנו.');}
+  else{const q=new URLSearchParams({id:'eq.'+row.id,status:'eq.'+row.status,archived_at:'is.null',select:'id'});const result=await api('/rest/v1/appointments?'+q,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({status:target})});if(ticket!==epoch)return;if(!Array.isArray(result)||result.length!==1)throw new Error('התור השתנה או שאין הרשאה לעדכנו.');}
   await load();note(demo?'הפעולה בוצעה בנתוני הדמה בלבד.':'התור עודכן.');
  }catch(e){if(ticket===epoch){await load();note(e.message,true);}}
  finally{lock(false);render();}
+}
+async function archiveAppointment(row,archive){
+ if(busy||(!archive&&!row.archived_at)||(archive&&(row.archived_at||!['confirmed','approved','cancelled'].includes(row.status))))return;
+ const action=archive?'להעביר לארכיון':'להחזיר לרשימה הראשית';
+ if(!window.confirm(`${action} את התור של ${row.patient_name}? הפעולה אינה מבטלת את התור ואינה משנה את זמינות השעה.`))return;
+ const ticket=epoch;lock(true);note('מעדכן ארכיון…');
+ try{
+  const stamp=archive?new Date().toISOString():null;
+  if(demo)row.archived_at=stamp;
+  else{const q=new URLSearchParams({id:'eq.'+row.id,status:'eq.'+row.status,archived_at:row.archived_at?'eq.'+row.archived_at:'is.null',select:'id::text'});const result=await api('/rest/v1/appointments?'+q,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({archived_at:stamp})});if(ticket!==epoch)return;if(!Array.isArray(result)||result.length!==1)throw new Error('התור השתנה או שאין הרשאה לעדכנו.');}
+  if(ticket!==epoch)return;await load();if(!demo&&rows.length===0&&offset>0){offset=Math.max(0,offset-50);await load();}note(archive?'התור הועבר לארכיון. מצבו וזמינות השעה לא השתנו.':'התור הוחזר לרשימה הראשית.');
+ }catch(e){if(ticket===epoch){await load();note('יש לבדוק את הרשימה לפני ניסיון נוסף. '+e.message,true);}}
+ finally{if(ticket===epoch){lock(false);render();}}
 }
 el('admin-demo').addEventListener('click',()=>{reset();demo=true;rows=fixture();el('admin-login').hidden=true;el('admin-dashboard').hidden=false;el('admin-mode').textContent='תצוגת ניסיון — נתונים מומצאים';render();});
 el('admin-login').addEventListener('submit',async event=>{
@@ -190,7 +206,7 @@ el('admin-login').addEventListener('submit',async event=>{
  }catch(e){reset();note(e.message,true);}finally{el('admin-password').value='';lock(false);}
 });
 el('admin-logout').addEventListener('click',async()=>{try{if(!demo&&token)await api('/auth/v1/logout',{method:'POST'});}catch{}finally{reset();}});
-el('admin-refresh').addEventListener('click',load);el('admin-filter').addEventListener('change',render);
+el('admin-refresh').addEventListener('click',load);el('admin-filter').addEventListener('change',()=>{offset=0;load();});el('admin-archive-view').addEventListener('change',()=>{offset=0;load();});
 el('admin-next').addEventListener('click',()=>{offset+=50;load();});el('admin-prev').addEventListener('click',()=>{offset=Math.max(0,offset-50);load();});
 el('admin-toggle').addEventListener('click',()=>{const panel=el('admin-panel');panel.hidden=!panel.hidden;el('admin-toggle').setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden){panel.scrollIntoView({behavior:'smooth',block:'start'});el('admin-title').focus();}else reset();});
 // Availability editor shares the verified administrator session and RLS-bound API.
